@@ -1,4 +1,3 @@
-// src/data/buttons.js
 export const portraitRows = [
   [
     { text: 'AC', type: 'func', style: { backgroundColor: '#9b9b9b' }, action: { kind: 'clear' } },

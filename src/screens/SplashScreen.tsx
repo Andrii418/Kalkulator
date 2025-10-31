@@ -1,4 +1,3 @@
-// src/screens/SplashScreen.tsx (lub .js)
 import React from 'react';
 import { View, Text, StyleSheet, StatusBar } from 'react-native';
 
@@ -15,19 +14,19 @@ const SplashScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000', // Czarny kolor tła
+    backgroundColor: '#000000',
     justifyContent: 'center',
     alignItems: 'center',
   },
   text: {
     fontSize: 50,
     fontWeight: 'bold',
-    color: '#ffffff', // Biały tekst
+    color: '#ffffff',
     marginBottom: 10,
   },
   subText: {
     fontSize: 20,
-    color: '#ff9f1c', // Pomarańczowy kolor akcentu
+    color: '#ff9f1c',
   },
 });
 

@@ -1,4 +1,3 @@
-// App.js (zamień cały plik)
 import React, { useState, useCallback, useEffect } from 'react';
 import { SafeAreaView, View, Text, TouchableOpacity, StyleSheet, Dimensions, StatusBar } from 'react-native';
 import CalcButton from './src/components/CalcButton';
@@ -271,7 +270,7 @@ const useCalculatorLogic = (isPortraitMode) => {
   };
 };
 
-// Portrait view (mapujemy po portraitRows)
+// mapujemy po portraitRows
 const PortraitView = ({ logic }) => {
     const { display, clearAll, inputDigit, inputComma, handleOperator, pressEqual, toggleSign, percent, operationDisplay } = logic;
 
@@ -325,7 +324,7 @@ const PortraitView = ({ logic }) => {
     );
 };
 
-// Landscape view (mapujemy po landscapeRows)
+// mapujemy po landscapeRows
 const LandscapeView = ({ logic }) => {
     const { display, operationDisplay, clearAll, inputDigit, inputComma, toggleSign, percent, handleOperator, pressEqual, handleScientificOp, handleScientificBinaryOp, isRad, setIsRad, memClear, memPlus, memMinus, memRecall } = logic;
 
@@ -389,15 +388,12 @@ const LandscapeView = ({ logic }) => {
 
 // App root
 export default function App() {
-  // --- WSZYSTKIE HOOKI NAJPIERW (MUSZĄ BYĆ ZAWSZE W TEJ SAMEJ KOLEJNOŚCI) ---
   const [orientation, setOrientation] = useState(Dimensions.get('window').width > Dimensions.get('window').height ? 'LANDSCAPE' : 'PORTRAIT');
   const [isLoading, setIsLoading] = useState(true);
 
   const isLandscape = orientation === 'LANDSCAPE';
-  // !!! TO JEST KLUCZOWE: useCalculatorLogic musi być wywołane przed jakimkolwiek wczesnym return.
   const logic = useCalculatorLogic(!isLandscape);
 
-  // Logika ukrywania Splash Screen
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsLoading(false);
@@ -417,12 +413,10 @@ export default function App() {
     return () => subscription?.remove?.();
   }, []);
 
-  // --- Wczesne wyjście (Early Return) dla Splash Screen ---
   if (isLoading) {
       return <SplashScreen />;
     }
 
-  // --- Normalny render kalkulatora ---
   return (
     <SafeAreaView style={[styles.container, isLandscape ? styles.containerLandscape : null]}>
         <StatusBar barStyle="light-content" />
