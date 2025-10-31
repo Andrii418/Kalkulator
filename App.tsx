@@ -1,17 +1,15 @@
+// App.js (zamień cały plik)
 import React, { useState, useCallback, useEffect } from 'react';
 import { SafeAreaView, View, Text, TouchableOpacity, StyleSheet, Dimensions, StatusBar } from 'react-native';
+import CalcButton from './src/components/CalcButton';
+import { portraitRows, landscapeRows } from './src/data/buttons';
+import SplashScreen from './src/screens/SplashScreen';
 
 const MARGIN = 4;
 const BTN_RADIUS = 6;
 const LANDSCAPE_DISPLAY_HEIGHT = 90;
-// komponent przycisku bazowy dla Landscape
-const BtnBase = ({ children, onPress, style, textStyle }) => (
-  <TouchableOpacity style={[styles.btnBase, style]} onPress={onPress}>
-    <Text style={[styles.btnTextLandscape, textStyle]}>{children}</Text>
-  </TouchableOpacity>
-);
 
-// funkcje pomocnicze dla trybu naukowego
+// funkcje pomocnicze
 const toLocaleString = (numStr) => {
     if (numStr === 'Error' || typeof numStr !== 'string') return numStr;
     if (numStr === '') return '';
@@ -20,7 +18,6 @@ const toLocaleString = (numStr) => {
 
 const parseFloatWithComma = (numStr) => {
     if (typeof numStr === 'string') {
-        // konwersja pustego ciągu na 0 dla obliczeń
         if (numStr === '') return 0;
         return parseFloat(numStr.replace(',', '.'));
     }
@@ -181,7 +178,6 @@ const useCalculatorLogic = (isPortraitMode) => {
         return;
     }
 
-    // tworzenie i zapisywanie operacji przed czyszczeniem
     const fullOperationString = `${toLocaleString(String(previous))} ${operator} ${toLocaleString(String(secondOperand))} =`;
     setLastOperation(fullOperationString);
 
@@ -228,7 +224,6 @@ const useCalculatorLogic = (isPortraitMode) => {
       default: return;
     }
 
-
     if (result === 'Error' || isNaN(result) || result === Infinity) {
       clearAll();
       setCurrent('Error');
@@ -238,7 +233,6 @@ const useCalculatorLogic = (isPortraitMode) => {
     setCurrent(toLocaleString(String(result)));
     setJustCalculated(true);
     setLastOperation('');
-
   }, [current, isRad, isPortraitMode]);
 
   const getOperationDisplay = () => {
@@ -252,10 +246,9 @@ const useCalculatorLogic = (isPortraitMode) => {
     return operationDisplay;
   };
 
-
   return {
     display: String(current),
-    operationDisplay: getOperationDisplay(), // oddzielnie dla obu trybów
+    operationDisplay: getOperationDisplay(),
     previous,
     operator,
     lastOperation,
@@ -278,24 +271,30 @@ const useCalculatorLogic = (isPortraitMode) => {
   };
 };
 
-
-// widok portrait
+// Portrait view (mapujemy po portraitRows)
 const PortraitView = ({ logic }) => {
     const { display, clearAll, inputDigit, inputComma, handleOperator, pressEqual, toggleSign, percent, operationDisplay } = logic;
 
     const displayedValue = toLocaleString(display);
     const renderCurrentValue = displayedValue === '' ? ' ' : displayedValue;
 
-    const PortraitBtn = ({ children, onPress, style }) => (
-        <TouchableOpacity style={[styles.btn, style]} onPress={onPress}>
-            <Text style={styles.btnText}>{children}</Text>
-        </TouchableOpacity>
-    );
+    const handleAction = (action) => {
+      if (!action) return () => {};
+      switch (action.kind) {
+        case 'digit': return () => inputDigit(action.value);
+        case 'comma': return () => inputComma();
+        case 'clear': return () => clearAll();
+        case 'toggleSign': return () => toggleSign();
+        case 'percent': return () => percent();
+        case 'operator': return () => handleOperator(action.value);
+        case 'equal': return () => pressEqual();
+        default: return () => {};
+      }
+    };
 
     return (
         <View style={styles.calc}>
             <View style={styles.displayContainer}>
-                {/* górny wyswietlacz operacji */}
                 <Text
                     style={styles.operationText}
                     numberOfLines={1}
@@ -304,76 +303,59 @@ const PortraitView = ({ logic }) => {
                     {operationDisplay}
                 </Text>
 
-                {/* dolny wyswietlacz wyniku */}
                 <Text style={styles.displayText} numberOfLines={1} adjustsFontSizeToFit>
                     {renderCurrentValue}
                 </Text>
             </View>
 
-            {/* Rząd 1 */}
-            <View style={styles.row}>
-                <PortraitBtn style={styles.btnGray} onPress={clearAll}>AC</PortraitBtn>
-                <PortraitBtn style={styles.btnGray} onPress={toggleSign}>+/-</PortraitBtn>
-                <PortraitBtn style={styles.btnGray} onPress={percent}>%</PortraitBtn>
-                <PortraitBtn style={styles.btnOrange} onPress={() => handleOperator('÷')}>÷</PortraitBtn>
-            </View>
-
-            {/* Rząd 2 */}
-            <View style={styles.row}>
-                <PortraitBtn onPress={() => inputDigit('7')}>7</PortraitBtn>
-                <PortraitBtn onPress={() => inputDigit('8')}>8</PortraitBtn>
-                <PortraitBtn onPress={() => inputDigit('9')}>9</PortraitBtn>
-                <PortraitBtn style={styles.btnOrange} onPress={() => handleOperator('×')}>×</PortraitBtn>
-            </View>
-
-            {/* Rząd 3 */}
-            <View style={styles.row}>
-                <PortraitBtn onPress={() => inputDigit('4')}>4</PortraitBtn>
-                <PortraitBtn onPress={() => inputDigit('5')}>5</PortraitBtn>
-                <PortraitBtn onPress={() => inputDigit('6')}>6</PortraitBtn>
-                <PortraitBtn style={styles.btnOrange} onPress={() => handleOperator('−')}>−</PortraitBtn>
-            </View>
-
-            {/* Rząd 4 */}
-            <View style={styles.row}>
-                <PortraitBtn onPress={() => inputDigit('1')}>1</PortraitBtn>
-                <PortraitBtn onPress={() => inputDigit('2')}>2</PortraitBtn>
-                <PortraitBtn onPress={() => inputDigit('3')}>3</PortraitBtn>
-                <PortraitBtn style={styles.btnOrange} onPress={() => handleOperator('+')}>+</PortraitBtn>
-            </View>
-
-            {/* Rząd 5 */}
-            <View style={styles.row}>
-                <PortraitBtn style={styles.btnWide} onPress={() => inputDigit('0')}>0</PortraitBtn>
-                <PortraitBtn onPress={inputComma}>,</PortraitBtn>
-                <PortraitBtn style={styles.btnOrange} onPress={pressEqual}>=</PortraitBtn>
-            </View>
+            {/* mapujemy rzędy */}
+            {portraitRows.map((row, rowIdx) => (
+              <View style={styles.row} key={`prow-${rowIdx}`}>
+                {row.map((btn, idx) => (
+                  <CalcButton
+                    key={`pbtn-${rowIdx}-${idx}`}
+                    text={btn.text}
+                    onPress={handleAction(btn.action)}
+                    containerStyle={btn.style}
+                  />
+                ))}
+              </View>
+            ))}
         </View>
     );
 };
 
-
-// widok landscape
+// Landscape view (mapujemy po landscapeRows)
 const LandscapeView = ({ logic }) => {
     const { display, operationDisplay, clearAll, inputDigit, inputComma, toggleSign, percent, handleOperator, pressEqual, handleScientificOp, handleScientificBinaryOp, isRad, setIsRad, memClear, memPlus, memMinus, memRecall } = logic;
 
-    // konwersja dla dużego wyświetlacza
     const renderedDisplay = toLocaleString(display) === '' ? ' ' : toLocaleString(display);
-
     const angleMode = isRad ? 'Rad' : 'Deg';
 
-    const SciBtn = ({ children, onPress, style }) => (
-        <BtnBase style={[styles.btnSci, style]} onPress={onPress}>{children}</BtnBase>
-    );
-
-    const NumBtn = ({ children, onPress, style }) => (
-        <BtnBase style={[styles.btnNum, style]} onPress={onPress}>{children}</BtnBase>
-    );
+    const handleAction = (action) => {
+      if (!action) return () => {};
+      switch (action.kind) {
+        case 'digit': return () => inputDigit(action.value);
+        case 'comma': return () => inputComma();
+        case 'clear': return () => clearAll();
+        case 'toggleSign': return () => toggleSign();
+        case 'percent': return () => percent();
+        case 'operator': return () => handleOperator(action.value);
+        case 'equal': return () => pressEqual();
+        case 'sci': return () => handleScientificOp(action.value);
+        case 'memClear': return () => memClear();
+        case 'memPlus': return () => memPlus();
+        case 'memMinus': return () => memMinus();
+        case 'memRecall': return () => memRecall();
+        case 'toggleRad': return () => setIsRad(prev => !prev);
+        case 'noop': return () => {};
+        default: return () => {};
+      }
+    };
 
     return (
         <View style={styles.landscapeCalc}>
             <View style={styles.displayContainerLandscape}>
-                {/* górny wyswietlacz w landscape */}
                 <Text
                     style={styles.operationTextLandscape}
                     numberOfLines={1}
@@ -382,94 +364,48 @@ const LandscapeView = ({ logic }) => {
                     {operationDisplay}
                 </Text>
 
-                {/* dolny wynik w landscape */}
                 <Text style={styles.displayTextLandscape} numberOfLines={1} adjustsFontSizeToFit>
                     {renderedDisplay}
                 </Text>
             </View>
 
-            {/* Rząd 1 */}
-            <View style={styles.rowLandscape}>
-                <SciBtn onPress={() => {}}>(</SciBtn>
-                <SciBtn onPress={() => {}}>)</SciBtn>
-                <SciBtn onPress={memClear}>mc</SciBtn>
-                <SciBtn onPress={memPlus}>m+</SciBtn>
-                <SciBtn onPress={memMinus}>m-</SciBtn>
-                <SciBtn onPress={memRecall}>mr</SciBtn>
-                <NumBtn style={styles.btnLightGrayLandscape} onPress={clearAll}>AC</NumBtn>
-                <NumBtn style={styles.btnLightGrayLandscape} onPress={toggleSign}>+/-</NumBtn>
-                <NumBtn style={styles.btnLightGrayLandscape} onPress={percent}>%</NumBtn>
-                <NumBtn style={styles.btnOrangeLandscape} onPress={() => handleOperator('÷')}>÷</NumBtn>
-            </View>
+            {landscapeRows.map((row, rIdx) => (
+              <View style={styles.rowLandscape} key={`lrow-${rIdx}`}>
+                {row.map((btn, i) => (
+                  <CalcButton
+                    key={`lbtn-${rIdx}-${i}`}
+                    text={btn.text === 'Rad' ? angleMode : btn.text}
+                    onPress={handleAction(btn.action)}
+                    containerStyle={[btn.style, { height: 55 }]}
+                    textStyle={styles.btnTextLandscape}
+                  />
+                ))}
+              </View>
+            ))}
 
-            {/* Rząd 2 */}
-            <View style={styles.rowLandscape}>
-                <SciBtn onPress={() => {}}>2ⁿᵈ</SciBtn>
-                <SciBtn onPress={() => handleScientificOp('x²')}>x²</SciBtn>
-                <SciBtn onPress={() => handleScientificOp('x³')}>x³</SciBtn>
-                <SciBtn onPress={() => handleScientificBinaryOp('xʸ')}>xʸ</SciBtn>
-                <SciBtn onPress={() => handleScientificOp('eˣ')}>eˣ</SciBtn>
-                <SciBtn onPress={() => handleScientificOp('10ˣ')}>10ˣ</SciBtn>
-                <NumBtn onPress={() => inputDigit('7')}>7</NumBtn>
-                <NumBtn onPress={() => inputDigit('8')}>8</NumBtn>
-                <NumBtn onPress={() => inputDigit('9')}>9</NumBtn>
-                <NumBtn style={styles.btnOrangeLandscape} onPress={() => handleOperator('×')}>×</NumBtn>
-            </View>
-
-            {/* Rząd 3 */}
-            <View style={styles.rowLandscape}>
-                <SciBtn onPress={() => handleScientificOp('1/x')}>1/x</SciBtn>
-                <SciBtn onPress={() => handleScientificOp('√x')}>√x</SciBtn>
-                <SciBtn onPress={() => handleScientificOp('³√x')}>³√x</SciBtn>
-                <SciBtn onPress={() => handleScientificBinaryOp('y√x')}>ʸ√x</SciBtn>
-                <SciBtn onPress={() => handleScientificOp('ln')}>ln</SciBtn>
-                <SciBtn onPress={() => handleScientificOp('log₁₀')}>log₁₀</SciBtn>
-                <NumBtn onPress={() => inputDigit('4')}>4</NumBtn>
-                <NumBtn onPress={() => inputDigit('5')}>5</NumBtn>
-                <NumBtn onPress={() => inputDigit('6')}>6</NumBtn>
-                <NumBtn style={styles.btnOrangeLandscape} onPress={() => handleOperator('−')}>−</NumBtn>
-            </View>
-
-            {/* Rząd 4 */}
-            <View style={styles.rowLandscape}>
-                <SciBtn onPress={() => handleScientificOp('x!')}>x!</SciBtn>
-                <SciBtn onPress={() => handleScientificOp('sin')}>sin</SciBtn>
-                <SciBtn onPress={() => handleScientificOp('cos')}>cos</SciBtn>
-                <SciBtn onPress={() => handleScientificOp('tan')}>tan</SciBtn>
-                <SciBtn onPress={() => handleScientificOp('e')}>e</SciBtn>
-                <SciBtn onPress={() => handleScientificOp('EE')}>EE</SciBtn>
-                <NumBtn onPress={() => inputDigit('1')}>1</NumBtn>
-                <NumBtn onPress={() => inputDigit('2')}>2</NumBtn>
-                <NumBtn onPress={() => inputDigit('3')}>3</NumBtn>
-                <NumBtn style={styles.btnOrangeLandscape} onPress={() => handleOperator('+')}>+</NumBtn>
-            </View>
-
-            {/* Rząd 5 */}
-            <View style={styles.rowLandscape}>
-                <SciBtn
-                    onPress={() => setIsRad(prev => !prev)}
-                    style={isRad ? styles.btnRadActive : styles.btnSci}
-                >
-                    {angleMode}
-                </SciBtn>
-                <SciBtn onPress={() => handleScientificOp('sinh')}>sinh</SciBtn>
-                <SciBtn onPress={() => handleScientificOp('cosh')}>cosh</SciBtn>
-                <SciBtn onPress={() => handleScientificOp('tanh')}>tanh</SciBtn>
-                <SciBtn onPress={() => handleScientificOp('π')}>π</SciBtn>
-                <SciBtn onPress={() => handleScientificOp('Rand')}>Rand</SciBtn>
-                <NumBtn style={styles.btnZeroLandscape} onPress={() => inputDigit('0')}>0</NumBtn>
-                <NumBtn onPress={inputComma}>,</NumBtn>
-                <NumBtn style={styles.btnOrangeLandscape} onPress={pressEqual}>=</NumBtn>
-            </View>
         </View>
     );
 };
 
-
-// komponent App z przełączaniem orientacji
+// App root
 export default function App() {
+  // --- WSZYSTKIE HOOKI NAJPIERW (MUSZĄ BYĆ ZAWSZE W TEJ SAMEJ KOLEJNOŚCI) ---
   const [orientation, setOrientation] = useState(Dimensions.get('window').width > Dimensions.get('window').height ? 'LANDSCAPE' : 'PORTRAIT');
+  const [isLoading, setIsLoading] = useState(true);
 
+  const isLandscape = orientation === 'LANDSCAPE';
+  // !!! TO JEST KLUCZOWE: useCalculatorLogic musi być wywołane przed jakimkolwiek wczesnym return.
+  const logic = useCalculatorLogic(!isLandscape);
+
+  // Logika ukrywania Splash Screen
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Logika zmiany orientacji
   useEffect(() => {
     const updateOrientation = () => {
       const { width, height } = Dimensions.get('window');
@@ -478,12 +414,15 @@ export default function App() {
 
     const subscription = Dimensions.addEventListener('change', updateOrientation);
     updateOrientation();
-    return () => subscription.remove();
+    return () => subscription?.remove?.();
   }, []);
 
-  const isLandscape = orientation === 'LANDSCAPE';
-  const logic = useCalculatorLogic(!isLandscape);
+  // --- Wczesne wyjście (Early Return) dla Splash Screen ---
+  if (isLoading) {
+      return <SplashScreen />;
+    }
 
+  // --- Normalny render kalkulatora ---
   return (
     <SafeAreaView style={[styles.container, isLandscape ? styles.containerLandscape : null]}>
         <StatusBar barStyle="light-content" />
@@ -520,7 +459,6 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingTop: 5,
   },
-  // styl dla górnego wyswietlacza portrait
   operationText: {
     color: '#bbbbbb',
     fontSize: 20,
@@ -576,7 +514,6 @@ const styles = StyleSheet.create({
     width: '100%',
     backgroundColor: '#2b2b2b',
   },
-  // kontener wyświetlacza z dwoma wierszami
   displayContainerLandscape: {
     height: LANDSCAPE_DISPLAY_HEIGHT,
     backgroundColor: '#2b2b2b',
@@ -585,7 +522,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingTop: 5,
   },
-  // style dla górnego wyswietlacza landscape
   operationTextLandscape: {
     color: '#bbbbbb',
     fontSize: 16,
