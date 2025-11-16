@@ -8,11 +8,16 @@ const MARGIN = 4;
 const BTN_RADIUS = 6;
 const LANDSCAPE_DISPLAY_HEIGHT = 90;
 
-// funkcje pomocnicze
 const toLocaleString = (numStr) => {
     if (numStr === 'Error' || typeof numStr !== 'string') return numStr;
     if (numStr === '') return '';
     return numStr.replace('.', ',');
+};
+
+const toJSToString = (numStr) => {
+    if (numStr === 'Error' || typeof numStr !== 'string') return numStr;
+    if (numStr === '') return '';
+    return numStr.replace(',', '.');
 };
 
 const parseFloatWithComma = (numStr) => {
@@ -23,235 +28,247 @@ const parseFloatWithComma = (numStr) => {
     return parseFloat(numStr);
 };
 
-// logika Kalkulatora
 const useCalculatorLogic = (isPortraitMode) => {
-  const [current, setCurrent] = useState('0');
-  const [previous, setPrevious] = useState(null);
-  const [operator, setOperator] = useState(null);
-  const [justCalculated, setJustCalculated] = useState(false);
+  const [expression, setExpression] = useState('');
+  const [display, setDisplay] = useState('0');
   const [lastOperation, setLastOperation] = useState('');
   const [isRad, setIsRad] = useState(true);
   const [mem, setMem] = useState(0);
 
+  const isLastCharOperator = (exp) => {
+    if (exp.length === 0) return false;
+    const lastChar = exp.slice(-1);
+    return ['+', '-', '*', '/'].includes(lastChar);
+  };
+
+  const getLastNumber = (exp) => {
+    const parts = exp.split(/([+\-*/])/).pop();
+    return parts ? parts.trim() : '';
+  };
+
   const clearAll = () => {
-    setCurrent('0');
-    setPrevious(null);
-    setOperator(null);
-    setJustCalculated(false);
+    setExpression('');
+    setDisplay('0');
     setLastOperation('');
   };
 
   const memClear = () => setMem(0);
-  const memPlus = () => setMem(prev => prev + parseFloatWithComma(current));
-  const memMinus = () => setMem(prev => prev - parseFloatWithComma(current));
+  const memPlus = () => setMem(prev => prev + parseFloatWithComma(display));
+  const memMinus = () => setMem(prev => prev - parseFloatWithComma(display));
   const memRecall = () => {
-    setCurrent(toLocaleString(String(mem)));
-    setJustCalculated(true);
+    const memStr = toLocaleString(String(mem));
+    setExpression(prev => {
+        const lastNum = getLastNumber(prev);
+        if (lastNum) {
+            return prev.substring(0, prev.length - lastNum.length) + memStr;
+        }
+        return memStr;
+    });
+    setDisplay(memStr);
     setLastOperation('');
   };
 
   const inputDigit = useCallback((digit) => {
-    if (justCalculated || current === 'Error') {
-      setCurrent(String(digit));
-      setJustCalculated(false);
-      setLastOperation('');
-      return;
-    }
+    setExpression(prev => {
+        const lastNum = getLastNumber(prev);
 
-    if (current === '') {
-        if (digit === '0') {
-            setCurrent('0');
-        } else {
-            setCurrent(String(digit));
+        if (prev === '0' || prev === 'Error') {
+            return String(digit);
         }
-        return;
-    }
 
-    if (current === '0' && digit === '0') return;
-    if (current === '0' && digit !== ',') {
-      setCurrent(String(digit));
-      return;
-    }
+        if (isLastCharOperator(prev)) {
+            return prev + String(digit);
+        }
 
-    setCurrent((prev) => prev.length < 15 ? prev + String(digit) : prev);
+        if (lastNum.length >= 15 && !isPortraitMode) return prev;
 
-  }, [current, justCalculated]);
+        if (lastNum === '0' && digit === '0') return prev;
+        if (lastNum === '0' && digit !== '0') {
+            return prev.substring(0, prev.length - 1) + String(digit);
+        }
+
+        return prev + String(digit);
+    });
+  }, [isPortraitMode]);
 
   const inputComma = useCallback(() => {
-    if (justCalculated || current === 'Error') {
-      setCurrent('0,');
-      setJustCalculated(false);
-      setLastOperation('');
-      return;
-    }
+    setExpression(prev => {
+        if (prev === 'Error') return '0,';
 
-    if (current === '') {
-        setCurrent('0,');
-        return;
-    }
-    if (!current.includes(',')) {
-      setCurrent(prev => prev + ',');
-    }
-  }, [current, justCalculated]);
+        const lastNum = getLastNumber(prev);
+
+        if (prev === '' || isLastCharOperator(prev)) {
+            return prev + '0,';
+        }
+
+        if (!lastNum.includes(',')) {
+            return prev + ',';
+        }
+        return prev;
+    });
+  }, []);
 
   const toggleSign = useCallback(() => {
-    if (current === '') return;
-    const num = parseFloatWithComma(current);
-    if (num === 0) return;
-    setCurrent(toLocaleString(String(-num)));
-    setLastOperation('');
-  }, [current]);
+    setExpression(prev => {
+      if (prev === 'Error' || prev === '' || isLastCharOperator(prev)) return prev;
+
+      const parts = prev.split(/([+\-*/])/);
+      const lastPart = parts.pop().trim();
+
+      if (lastPart) {
+          const num = parseFloatWithComma(lastPart);
+          if (num === 0) return prev;
+
+          const newNum = toLocaleString(String(-num));
+
+          return prev.substring(0, prev.length - lastPart.length) + newNum;
+      }
+      return prev;
+    });
+  }, []);
 
   const percent = useCallback(() => {
-    if (current === '') return;
-    const num = parseFloatWithComma(current);
-    setCurrent(toLocaleString(String(num / 100)));
-    setJustCalculated(true);
-    setLastOperation('');
-  }, [current]);
+    setExpression(prev => {
+      if (prev === 'Error' || prev === '' || isLastCharOperator(prev)) return prev;
 
-  const computeResult = (aStr, bStr, op) => {
-    const a = parseFloat(aStr.replace(',', '.'));
-    const b = parseFloatWithComma(bStr);
+      const lastPart = getLastNumber(prev);
 
-    if (isNaN(a) || isNaN(b)) return isPortraitMode ? 0 : 'Error';
-    let r = 0;
+      if (lastPart) {
+          const num = parseFloatWithComma(lastPart);
 
-    const opMap = { '+': 'plus', '−': 'minus', '×': 'times', '÷': 'divide', '*': 'times', '/': 'divide', 'xʸ': 'pow', 'y√x': 'root' };
-    const actualOp = opMap[op] || op;
+          const newNum = toLocaleString(String(num / 100));
 
-    if (actualOp === 'plus') r = a + b;
-    else if (actualOp === 'minus') r = a - b;
-    else if (actualOp === 'times') r = a * b;
-    else if (actualOp === 'divide') {
-      if (b === 0) return 'Error';
-      r = a / b;
-    }
-    else if (actualOp === 'pow') r = Math.pow(a, b);
-    else if (actualOp === 'root') r = Math.pow(b, 1/a);
-
-    if (typeof r === 'number' && !Number.isInteger(r)) {
-      const resultString = parseFloat(r.toFixed(10)).toString();
-      return isPortraitMode ? resultString.replace('.', ',') : resultString;
-    }
-    return String(r);
-  };
+          return prev.substring(0, prev.length - lastPart.length) + newNum;
+      }
+      return prev;
+    });
+  }, []);
 
   const handleOperator = useCallback((op) => {
-    if (current === 'Error') return;
+    setExpression(prev => {
+      if (prev === 'Error') return '';
 
-    const actualOp = isPortraitMode && op === '×' ? '*' : isPortraitMode && op === '÷' ? '/' : op;
-    const nextCurrentValue = '';
+      const actualOp = op === '×' ? '*' : op === '÷' ? '/' : op;
 
-    if (previous === null || justCalculated) {
-      setPrevious(current === '' ? '0' : current);
-      setOperator(actualOp);
-      setCurrent(nextCurrentValue);
-      setJustCalculated(false);
-      setLastOperation('');
-    } else {
-      const result = computeResult(previous, current, operator);
-      if (result === 'Error') {
-        clearAll();
-        setCurrent('Error');
-        return;
+      if (isLastCharOperator(prev)) {
+        return prev.substring(0, prev.length - 1) + actualOp;
       }
-      setPrevious(result);
-      setOperator(actualOp);
-      setCurrent(nextCurrentValue);
-      setJustCalculated(false);
-      setLastOperation('');
-    }
-  }, [current, previous, operator, justCalculated]);
+
+      if (prev === '') {
+        return '0' + actualOp;
+      }
+
+      return prev + actualOp;
+    });
+  }, []);
 
   const pressEqual = useCallback(() => {
-    if (previous === null || operator === null || current === 'Error') return;
+      if (expression === '' || expression === 'Error') {
+          setDisplay('0');
+          setLastOperation('');
+          return;
+      }
 
-    const secondOperand = current === '' ? previous : current;
+      let finalExpression = expression;
+      if (isLastCharOperator(finalExpression)) {
+        finalExpression = finalExpression.substring(0, finalExpression.length - 1);
+      }
 
-    const result = computeResult(previous, secondOperand, operator);
+      const expressionForEval = toJSToString(finalExpression)
+          .replace(/×/g, '*')
+          .replace(/÷/g, '/')
+          .replace(/−/g, '-')
+          .replace(/,/g, '.');
 
-    if (result === 'Error') {
-        clearAll();
-        setCurrent('Error');
-        return;
-    }
+      try {
+          if (!/^[0-9+\-*/().,]+$/.test(expressionForEval)) {
+              throw new Error('Niedozwolone znaki.');
+          }
 
-    const fullOperationString = `${toLocaleString(String(previous))} ${operator} ${toLocaleString(String(secondOperand))} =`;
-    setLastOperation(fullOperationString);
+          let result = String(eval(expressionForEval));
 
-    setCurrent(String(result));
-    setPrevious(null);
-    setOperator(null);
-    setJustCalculated(true);
-  }, [current, previous, operator]);
+          if (result === 'Infinity' || result === 'NaN') {
+              throw new Error('Błąd dzielenia przez zero lub nieprawidłowe działanie.');
+          }
+
+          const formattedResult = toLocaleString(result);
+
+          setLastOperation(`${toLocaleString(finalExpression)} =`);
+          setDisplay(formattedResult);
+          setExpression(formattedResult);
+
+      } catch (e) {
+          setDisplay('Error');
+          setExpression('Error');
+          setLastOperation(`${toLocaleString(finalExpression)} =`);
+      }
+  }, [expression]);
+
 
   const handleScientificOp = useCallback((op) => {
-    if (current === 'Error' || (current === '' && op !== 'π' && op !== 'e' && op !== 'Rand')) return;
+    if (expression === 'Error') return;
 
-    let num = parseFloatWithComma(current);
+    let num = parseFloatWithComma(display);
     let result = num;
     const angle = isRad ? num : num * (Math.PI / 180);
 
     switch (op) {
       case 'x²': result = num * num; break;
-      case 'x³': result = num * num * num; break;
       case '1/x': result = 1 / num; break;
       case '√x': result = Math.sqrt(num); break;
-      case '³√x': result = Math.cbrt(num); break;
-      case 'eˣ': result = Math.exp(num); break;
-      case '10ˣ': result = Math.pow(10, num); break;
-      case 'ln': result = Math.log(num); break;
-      case 'log₁₀': result = Math.log10(num); break;
       case 'sin': result = Math.sin(angle); break;
       case 'cos': result = Math.cos(angle); break;
       case 'tan': result = Math.tan(angle); break;
-      case 'sinh': result = Math.sinh(num); break;
-      case 'cosh': result = Math.cosh(num); break;
-      case 'tanh': result = Math.tanh(num); break;
-      case 'x!':
-        if (num < 0 || num % 1 !== 0) { result = 'Error'; }
-        else {
-          let fact = 1;
-          for(let i = 2; i <= num; i++) fact *= i;
-          result = fact;
-        }
-        break;
       case 'π': result = Math.PI; break;
       case 'e': result = Math.E; break;
       case 'Rand': result = Math.random(); break;
       default: return;
     }
 
-    if (result === 'Error' || isNaN(result) || result === Infinity) {
+    if (isNaN(result) || result === Infinity) {
       clearAll();
-      setCurrent('Error');
+      setDisplay('Error');
+      setExpression('Error');
       return;
     }
 
-    setCurrent(toLocaleString(String(result)));
-    setJustCalculated(true);
+    const formattedResult = toLocaleString(String(result));
+
+    setExpression(prev => {
+        const lastNum = getLastNumber(prev);
+        if (lastNum) {
+             return prev.substring(0, prev.length - lastNum.length) + formattedResult;
+        }
+        return formattedResult;
+    });
+    setDisplay(formattedResult);
     setLastOperation('');
-  }, [current, isRad, isPortraitMode]);
+  }, [display, isRad]);
 
-  const getOperationDisplay = () => {
-    let operationDisplay = '';
-
-    if (lastOperation !== '') {
-        operationDisplay = lastOperation;
-    } else if (previous !== null && operator !== null && !justCalculated) {
-        operationDisplay = `${toLocaleString(String(previous))} ${operator}`;
+  useEffect(() => {
+    if (expression === '') {
+        setDisplay('0');
+        return;
     }
-    return operationDisplay;
-  };
+    if (expression === 'Error') {
+        setDisplay('Error');
+        return;
+    }
+
+    const lastNum = getLastNumber(expression);
+
+    if (isLastCharOperator(expression)) {
+        setDisplay(expression.slice(-1));
+        return;
+    }
+
+    setDisplay(lastNum || '0');
+  }, [expression]);
+
 
   return {
-    display: String(current),
-    operationDisplay: getOperationDisplay(),
-    previous,
-    operator,
-    lastOperation,
-    justCalculated,
+    display: display,
+    operationDisplay: expression === 'Error' ? lastOperation : expression,
     clearAll,
     inputDigit,
     inputComma,
@@ -270,12 +287,11 @@ const useCalculatorLogic = (isPortraitMode) => {
   };
 };
 
-// mapujemy po portraitRows
 const PortraitView = ({ logic }) => {
     const { display, clearAll, inputDigit, inputComma, handleOperator, pressEqual, toggleSign, percent, operationDisplay } = logic;
 
-    const displayedValue = toLocaleString(display);
-    const renderCurrentValue = displayedValue === '' ? ' ' : displayedValue;
+    const renderedExpression = operationDisplay;
+    const renderCurrentValue = display === '' || display.length > 15 ? toLocaleString(display) : display;
 
     const handleAction = (action) => {
       if (!action) return () => {};
@@ -299,7 +315,7 @@ const PortraitView = ({ logic }) => {
                     numberOfLines={1}
                     adjustsFontSizeToFit={true}
                 >
-                    {operationDisplay}
+                    {renderedExpression}
                 </Text>
 
                 <Text style={styles.displayText} numberOfLines={1} adjustsFontSizeToFit>
@@ -307,7 +323,6 @@ const PortraitView = ({ logic }) => {
                 </Text>
             </View>
 
-            {/* mapujemy rzędy */}
             {portraitRows.map((row, rowIdx) => (
               <View style={styles.row} key={`prow-${rowIdx}`}>
                 {row.map((btn, idx) => (
@@ -324,11 +339,10 @@ const PortraitView = ({ logic }) => {
     );
 };
 
-// mapujemy po landscapeRows
 const LandscapeView = ({ logic }) => {
-    const { display, operationDisplay, clearAll, inputDigit, inputComma, toggleSign, percent, handleOperator, pressEqual, handleScientificOp, handleScientificBinaryOp, isRad, setIsRad, memClear, memPlus, memMinus, memRecall } = logic;
+    const { display, operationDisplay, clearAll, inputDigit, inputComma, toggleSign, percent, handleOperator, pressEqual, handleScientificOp, isRad, setIsRad, memClear, memPlus, memMinus, memRecall } = logic;
 
-    const renderedDisplay = toLocaleString(display) === '' ? ' ' : toLocaleString(display);
+    const renderedDisplay = display === '' ? ' ' : display;
     const angleMode = isRad ? 'Rad' : 'Deg';
 
     const handleAction = (action) => {
@@ -386,7 +400,6 @@ const LandscapeView = ({ logic }) => {
     );
 };
 
-// App root
 export default function App() {
   const [orientation, setOrientation] = useState(Dimensions.get('window').width > Dimensions.get('window').height ? 'LANDSCAPE' : 'PORTRAIT');
   const [isLoading, setIsLoading] = useState(true);
@@ -401,7 +414,6 @@ export default function App() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Logika zmiany orientacji
   useEffect(() => {
     const updateOrientation = () => {
       const { width, height } = Dimensions.get('window');
@@ -438,7 +450,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  // style dla portrait
   calc: {
     marginHorizontal: 16,
     borderRadius: 8,
@@ -498,7 +509,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  // style landscape
   containerLandscape: {
     backgroundColor: '#000',
     justifyContent: 'flex-end',
@@ -537,7 +547,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
 
-  // kolory naukowych przyciskow
   btnSci: {
     flex: 1,
     backgroundColor: '#3a3a3a',
